@@ -6,18 +6,36 @@ import Loadable from 'ui-component/Loadable';
 import { ProtectedRoute } from './ProtectedRoute';
 
 // dashboard routing
-const DashboardDefault = Loadable(lazy(() => import('views/dashboard/Default')));
+const DashboardDefault = Loadable(
+  lazy(() => import('views/dashboard/Default'))
+);
 
 // utilities routing
-const UtilsTypography = Loadable(lazy(() => import('views/utilities/Typography')));
-const UtilsColor = Loadable(lazy(() => import('views/utilities/Color')));
-const UtilsShadow = Loadable(lazy(() => import('views/utilities/Shadow')));
+const UtilsTypography = Loadable(
+  lazy(() => import('views/utilities/Typography'))
+);
 
-// sample page routing
-const SamplePage = Loadable(lazy(() => import('views/sample-page')));
+const UtilsColor = Loadable(
+  lazy(() => import('views/utilities/Color'))
+);
 
-const TicketList = Loadable(lazy(() => import('views/tickets/TicketList')));
-const TicketCreate = Loadable(lazy(() => import('views/tickets/TicketCreate')));
+const UtilsShadow = Loadable(
+  lazy(() => import('views/utilities/Shadow'))
+);
+
+// tickets
+const TicketList = Loadable(
+  lazy(() => import('views/tickets/TicketList'))
+);
+
+const TicketCreate = Loadable(
+  lazy(() => import('views/tickets/TicketCreate'))
+);
+
+const TicketView = Loadable(
+  lazy(() => import('views/tickets/TicketView'))
+);
+
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -25,38 +43,86 @@ const MainRoutes = {
   path: '/',
   element: <MainLayout />,
   children: [
+
+    // Dashboard
     {
       path: '/',
-      element: <ProtectedRoute><DashboardDefault /></ProtectedRoute>
+      element: (
+        <ProtectedRoute>
+          <DashboardDefault />
+        </ProtectedRoute>
+      )
     },
+
     {
       path: 'dashboard',
       children: [
         {
           path: 'default',
-          element: <ProtectedRoute><DashboardDefault /></ProtectedRoute>
+          element: (
+            <ProtectedRoute>
+              <DashboardDefault />
+            </ProtectedRoute>
+          )
         }
       ]
     },
+
+    // Utilities
     {
       path: 'typography',
-      element: <ProtectedRoute><UtilsTypography /></ProtectedRoute>
+      element: (
+        <ProtectedRoute>
+          <UtilsTypography />
+        </ProtectedRoute>
+      )
     },
+
     {
       path: 'color',
-      element: <ProtectedRoute><UtilsColor /></ProtectedRoute>
+      element: (
+        <ProtectedRoute>
+          <UtilsColor />
+        </ProtectedRoute>
+      )
     },
+
     {
       path: 'shadow',
-      element: <ProtectedRoute><UtilsShadow /></ProtectedRoute>
+      element: (
+        <ProtectedRoute>
+          <UtilsShadow />
+        </ProtectedRoute>
+      )
     },
+
+    // Tickets
     {
       path: 'tickets',
-      element: <ProtectedRoute><TicketList /></ProtectedRoute>
+      element: (
+        <ProtectedRoute>
+          <TicketList />
+        </ProtectedRoute>
+      )
     },
+
     {
       path: 'tickets/create',
-      element: <ProtectedRoute><TicketCreate /></ProtectedRoute>
+      element: (
+        <ProtectedRoute>
+          <TicketCreate />
+        </ProtectedRoute>
+      )
+    },
+
+    // Visualizar chamado
+    {
+      path: 'tickets/:id',
+      element: (
+        <ProtectedRoute>
+          <TicketView />
+        </ProtectedRoute>
+      )
     }
   ]
 };
