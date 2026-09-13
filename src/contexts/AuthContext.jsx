@@ -1,48 +1,62 @@
 import PropTypes from 'prop-types';
 import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 
-// Serviços
-import { getUser, isAuthenticated, logout } from 'services/authService';
-
-// ==============================|| AUTH CONTEXT ||============================== //
+import { getSession, login as loginRequest, logout } from 'services/authService';
 
 export const AuthContext = createContext(undefined);
-
-// ==============================|| AUTH PROVIDER ||============================== //
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuth, setIsAuth] = useState(false);
 
-  // Inicializar estado de autenticação ao carregar
   useEffect(() => {
-    const user = getUser();
-    const authenticated = isAuthenticated();
+    let mounted = true;
 
-    setUser(user);
-    setIsAuth(authenticated);
-    setLoading(false);
+    const restoreSession = async () => {
+      try {
+        // A sessão real fica nos cookies HttpOnly; o localStorage é apenas cache visual.
+        const sessionUser = await getSession();
+        if (mounted) {
+          setUser(sessionUser);
+          setIsAuth(true);
+        }
+      } catch {
+        if (mounted) {
+          setUser(null);
+          setIsAuth(false);
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    restoreSession();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // Função para fazer logout
+  const handleLogin = useCallback(async (email, password) => {
+    const response = await loginRequest(email, password);
+    const userData = {
+      email: response.email,
+      name: response.name,
+      role: response.role,
+      avatar: response.avatar || response.avatarUrl || response.photoUrl || response.profilePhoto || response.image || null
+    };
+    setUser(userData);
+    setIsAuth(true);
+    return userData;
+  }, []);
+
   const handleLogout = useCallback(async () => {
     try {
       await logout();
-      setUser(null);
-      setIsAuth(false);
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error);
-      // Mesmo com erro, limpar estado local
+    } finally {
       setUser(null);
       setIsAuth(false);
     }
-  }, []);
-
-  // Função para atualizar usuário após login
-  const handleLogin = useCallback((userData) => {
-    setUser(userData);
-    setIsAuth(true);
   }, []);
 
   const memoizedValue = useMemo(
@@ -50,10 +64,14 @@ export function AuthProvider({ children }) {
       user,
       isAuthenticated: isAuth,
       loading,
+      login: handleLogin,
       logout: handleLogout,
-      setUser: handleLogin
+      setUser: (userData) => {
+        setUser(userData);
+        setIsAuth(Boolean(userData));
+      }
     }),
-    [user, isAuth, loading, handleLogout, handleLogin]
+    [user, isAuth, loading, handleLogin, handleLogout]
   );
 
   return <AuthContext.Provider value={memoizedValue}>{children}</AuthContext.Provider>;

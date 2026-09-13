@@ -1,14 +1,26 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
 // Material-UI components
-import { useTheme, Box, Button, Grid, Stack, TextField, Typography, MenuItem, Chip, Avatar, Autocomplete, CircularProgress, Alert } from '@mui/material';
+import {
+  useTheme,
+  Box,
+  Button,
+  Grid,
+  Stack,
+  TextField,
+  Typography,
+  MenuItem,
+  Chip,
+  CircularProgress,
+  Alert
+} from '@mui/material';
 
-// Projeto específico: Componentes do Berry Free
+// Componentes específicos de criação de chamados
 import MainCard from 'ui-component/cards/MainCard';
 import AnimateButton from 'ui-component/extended/AnimateButton';
 
-// Ícones (Tabler Icons, padrão do Berry)
+// Ícones da tela de criação de chamados
 import { IconNote, IconTag, IconCheck, IconX } from '@tabler/icons-react';
 
 // Editor de Texto Rico (Rich Text Editor)
@@ -17,37 +29,27 @@ import 'react-quill-new/dist/quill.snow.css';
 
 // Serviços e Hooks
 import { useAuth } from 'hooks/useAuth';
-import { createTicket } from 'services/ticketService';
+import { createTicket, getTicketById, updateTicket } from 'services/ticketService';
 import api from 'utils/api';
-
-const PRIORITY_COLORS = {
-  BAIXA: 'success',
-  MEDIA: 'warning',
-  ALTA: 'error',
-  URGENTE: 'error'
-};
-
-const PRIORITY_LABELS = {
-  BAIXA: 'Baixa',
-  MEDIA: 'Média',
-  ALTA: 'Alta',
-  URGENTE: 'Urgente'
-};
+import { toAbsoluteImageUrls, toAbsoluteUrl, toRelativeImageUrls } from 'utils/ticketImages';
+import { PriorityBadge } from 'ui-component/tickets/TicketBadges';
 
 // ==============================|| COMPONENTE DE CRIAÇÃO DE CHAMADO ||============================== //
 
 const TicketForm = () => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { id } = useParams();
   const { user } = useAuth();
+  const isEditMode = Boolean(id);
 
   // Estados do formulário
   const [ticketTitle, setTicketTitle] = useState('');
   const [problemDescription, setProblemDescription] = useState('');
   const [priority, setPriority] = useState('MEDIA');
-  const [responsibleSector, setResponsibleSector] = useState('');
+  const [responsibleSector, setResponsibleSector] = useState([]);
   const [category, setCategory] = useState('');
-  const [technicianId, setTechnicianId] = useState('');
+  const [technicianIds, setTechnicianIds] = useState([]);
 
   // Estados de dados e carregamento
   const [sectors, setSectors] = useState([]);
@@ -59,12 +61,36 @@ const TicketForm = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
+  // Referência ao editor Quill, usada pelo handler de upload de imagem
+  const quillRef = useRef(null);
+
+  useEffect(() => {
+    if (!id) return;
+
+    const loadTicket = async () => {
+      try {
+        const response = await getTicketById(id);
+        const ticket = response?.data || response;
+        setTicketTitle(ticket.title || '');
+        setProblemDescription(toAbsoluteImageUrls(ticket.description || ''));
+        setPriority(ticket.priority || 'MEDIA');
+        setCategory(ticket.category || '');
+        setResponsibleSector(ticket.departmentId ? [String(ticket.departmentId)] : []);
+        setTechnicianIds((ticket.technicianIds || []).map((technicianId) => String(technicianId)));
+      } catch (err) {
+        setError(err.message || 'Erro ao carregar o chamado para edição.');
+      }
+    };
+
+    loadTicket();
+  }, [id]);
+
   // Buscar setores e categorias ao montar o componente
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
         setLoadingSectors(true);
-        
+
         // Buscar setores
         const sectorsRes = await api.get('/api/departments');
         setSectors(Array.isArray(sectorsRes) ? sectorsRes : sectorsRes?.data || []);
@@ -83,11 +109,11 @@ const TicketForm = () => {
     fetchInitialData();
   }, []);
 
-  // Buscar técnicos quando o ID do setor mudar
+  // Buscar técnicos quando os setores mudarem
   useEffect(() => {
-    if (!responsibleSector) {
+    if (!responsibleSector || responsibleSector.length === 0) {
       setTechnicians([]);
-      setTechnicianId('');
+      setTechnicianIds([]);
       return;
     }
 
@@ -95,31 +121,32 @@ const TicketForm = () => {
       try {
         setLoadingTechnicians(true);
         setError(null);
-        
-        // Garante que o ID do setor seja enviado corretamente como número/string
-        const deptId = typeof responsibleSector === 'object' ? responsibleSector.id : responsibleSector;
 
-        // ATENÇÃO: Verifique se a sua baseURL do axios já tem '/api'.
-        // Se tiver, mude para: await api.get('/technicians', ...
-        const res = await api.get('/api/technicians', {
-          params: { departmentId: deptId }
+        const promises = responsibleSector.map((sectorId) => {
+          const deptId = typeof sectorId === 'object' ? sectorId.id : sectorId;
+          return api.get('/api/technicians', { params: { departmentId: deptId } });
         });
 
-        console.log('Resposta da API Técnicos:', res);
+        const responses = await Promise.all(promises);
 
-        // Tratamento para garantir que pegamos a lista de técnicos corretamente
-        let techData = [];
-        if (Array.isArray(res)) {
-          techData = res;
-        } else if (Array.isArray(res?.data)) {
-          techData = res.data;
-        }
+        let allTechData = [];
+        responses.forEach((res) => {
+          let techData = [];
+          if (Array.isArray(res)) {
+            techData = res;
+          } else if (Array.isArray(res?.data)) {
+            techData = res.data;
+          }
+          allTechData = [...allTechData, ...techData];
+        });
 
-        setTechnicians(techData);
-        setTechnicianId('');
+        const uniqueTechs = Array.from(new Map(allTechData.map((item) => [String(item.id), item])).values());
+
+        setTechnicians(uniqueTechs);
+        setTechnicianIds((prev) => prev.filter((id) => uniqueTechs.some((tech) => String(tech.id) === String(id))));
       } catch (err) {
-        console.error('Erro ao buscar técnicos por ID do setor:', err);
-        setError('Erro ao carregar técnicos do setor');
+        console.error('Erro ao buscar técnicos:', err);
+        setError('Erro ao carregar técnicos dos setores');
         setTechnicians([]);
       } finally {
         setLoadingTechnicians(false);
@@ -131,23 +158,66 @@ const TicketForm = () => {
 
   const isValid = ticketTitle.trim() !== '' && problemDescription.trim() !== '' && priority && category;
 
-  const quillModules = {
-    toolbar: [
-      ['bold', 'italic', 'underline', 'strike'],
-      [{ script: 'sub' }, { script: 'super' }],
-      ['link', 'image'],
-      [{ header: '2' }, { header: '3' }],
-      [{ align: [] }],
-      ['blockquote', 'code-block'],
-      [{ list: 'bullet' }, { list: 'ordered' }],
-      [{ table: true }],
-      ['clean']
-    ]
-  };
+  // Handler customizado do botão de imagem do Quill: em vez de embutir a
+  // imagem como base64 na descrição (o que estourava a coluna do banco),
+  // faz upload do arquivo e insere só a URL retornada.
+  const imageHandler = useCallback(() => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/png,image/jpeg,image/gif,image/webp');
+    input.click();
 
-  const handleSectorChange = (value) => {
-    setResponsibleSector(value);
-  };
+    input.onchange = async () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+
+      const quill = quillRef.current?.getEditor();
+      const range = quill?.getSelection(true);
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await api.post('/api/uploads/ticket-image', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        const imageUrl = toAbsoluteUrl(response?.url || response?.data?.url);
+
+        console.log('Upload response:', response);
+        console.log('Image URL:', imageUrl);
+
+        if (quill && range && imageUrl) {
+          quill.insertEmbed(range.index, 'image', imageUrl, 'user');
+          quill.setSelection(range.index + 1);
+        }
+      } catch (err) {
+        console.error('Erro ao enviar imagem:', err);
+        setError(err.message || 'Erro ao enviar imagem. Tente novamente.');
+      }
+    };
+  }, []);
+
+  const quillModules = useMemo(
+    () => ({
+      toolbar: {
+        container: [
+          ['bold', 'italic', 'underline', 'strike'],
+          [{ script: 'sub' }, { script: 'super' }],
+          ['link', 'image'],
+          [{ header: '2' }, { header: '3' }],
+          [{ align: [] }],
+          ['blockquote', 'code-block'],
+          [{ list: 'bullet' }, { list: 'ordered' }],
+          [{ table: true }],
+          ['clean']
+        ],
+        handlers: {
+          image: imageHandler
+        }
+      }
+    }),
+    [imageHandler]
+  );
 
   const handleSubmit = async () => {
     if (!isValid) return;
@@ -159,22 +229,31 @@ const TicketForm = () => {
     try {
       const ticketData = {
         title: ticketTitle,
-        description: problemDescription,
+        description: toRelativeImageUrls(problemDescription),
         priority,
         category,
-        departmentId: responsibleSector
-            ? parseInt(responsibleSector)
+        departmentIds: responsibleSector.map((id) => Number(id)).filter((id) => Number.isFinite(id)),
+        departmentId:
+          responsibleSector.length > 0 && Number.isFinite(Number(responsibleSector[0]))
+            ? Number(responsibleSector[0])
             : null,
-        assignedTechnicianId: technicianId
-            ? parseInt(technicianId)
+        assignedTechnicianIds: technicianIds
+          .map((id) => Number(id))
+          .filter((id) => Number.isFinite(id)),
+        assignedTechnicianId:
+          technicianIds.length > 0 && Number.isFinite(Number(technicianIds[0]))
+            ? Number(technicianIds[0])
             : null
-    };
+      };
 
-      const newTicket = await createTicket(ticketData);
+      if (isEditMode) {
+        await updateTicket(id, ticketData);
+      } else {
+        await createTicket(ticketData);
+      }
 
       setSuccess(true);
-      
-      // Redirecionar para a lista de tickets após sucesso
+
       setTimeout(() => {
         navigate('/tickets');
       }, 1500);
@@ -188,7 +267,7 @@ const TicketForm = () => {
 
   return (
     <>
-      {/* Barra de ações — sem título, o layout do template já exibe "Criar Chamado" no topo da página */}
+      {/* Barra de ações superior corrigida para Dark Mode */}
       <Stack
         direction="row"
         alignItems="center"
@@ -199,22 +278,55 @@ const TicketForm = () => {
           position: 'sticky',
           top: 0,
           zIndex: 10,
-          bgcolor: theme.palette.background.default,
-          py: 1
+          bgcolor: 'var(--mui-palette-background-default)',
+          py: 1.5,
+          px: 2,
+          borderRadius: 2,
+          border: '1px solid',
+          borderColor: 'divider'
         }}
       >
-        <Button variant="outlined" color="secondary" startIcon={<IconX size="1.1rem" />} onClick={() => navigate('/tickets')} disabled={submitting}>
+        <Button
+          variant="outlined"
+          color="inherit"
+          startIcon={<IconX size="1.1rem" />}
+          onClick={() => navigate('/tickets')}
+          disabled={submitting}
+          sx={{
+            borderColor: 'divider',
+            color: 'text.primary',
+            '&:hover': { bgcolor: 'action.hover' }
+          }}
+        >
           Cancelar
         </Button>
         <AnimateButton>
           <Button
             variant="contained"
-            color="primary"
+            disableElevation
             startIcon={<IconCheck size="1.1rem" />}
             disabled={!isValid || submitting || loadingSectors}
             onClick={handleSubmit}
+            sx={{
+              bgcolor: 'primary.main',
+              color: '#ffffff',
+              fontWeight: 600,
+              '&:hover': {
+                bgcolor: 'primary.dark'
+              },
+              '&.Mui-disabled': {
+                bgcolor: 'action.disabledBackground',
+                color: 'action.disabled'
+              }
+            }}
           >
-            {submitting ? 'Criando...' : 'Criar'}
+            {submitting
+              ? isEditMode
+                ? 'Salvando...'
+                : 'Criando...'
+              : isEditMode
+                ? 'Salvar alterações'
+                : 'Criar Chamado'}
           </Button>
         </AnimateButton>
       </Stack>
@@ -228,19 +340,19 @@ const TicketForm = () => {
 
       {success && (
         <Alert severity="success" onClose={() => setSuccess(false)} sx={{ mb: 2 }}>
-          Chamado criado com sucesso! Redirecionando...
+          {isEditMode ? 'Chamado atualizado com sucesso!' : 'Chamado criado com sucesso!'} Redirecionando...
         </Alert>
       )}
 
-      {/* Grid Principal (2 colunas) */}
+      {/* Grid Principal */}
       <Grid container spacing={3}>
-        {/* COLUNA ESQUERDA (Maior) - Informações do Chamado */}
+        {/* COLUNA ESQUERDA - Informações do Chamado */}
         <Grid size={{ xs: 12, md: 8 }}>
           <MainCard
             title={
               <Stack direction="row" alignItems="center" spacing={1.5}>
-                <IconNote color={theme.palette.secondary.main} />
-                <Typography variant="h4">Informações do Chamado</Typography>
+                <IconNote size="1.4rem" style={{ color: 'var(--mui-palette-primary-main)' }} />
+                <Typography variant="h4">{isEditMode ? 'Editar Chamado' : 'Informações do Chamado'}</Typography>
               </Stack>
             }
           >
@@ -268,13 +380,65 @@ const TicketForm = () => {
                   <Typography variant="subtitle1" component="label" gutterBottom>
                     Descrição do Problema <span style={{ color: theme.palette.error.main }}>*</span>
                   </Typography>
-                  <Box sx={{ '& .ql-container': { minHeight: '320px' }, opacity: submitting ? 0.5 : 1, pointerEvents: submitting ? 'none' : 'auto' }}>
+                  <Box
+                    sx={{
+                      opacity: submitting ? 0.5 : 1,
+                      pointerEvents: submitting ? 'none' : 'auto',
+                      // Estilização do Container Principal do Quill
+                      '& .ql-container.ql-snow': {
+                        borderColor: theme.palette.divider,
+                        borderRadius: '0 0 8px 8px',
+                        bgcolor: 'background.paper',
+                        color: theme.palette.text.primary,
+                        minHeight: '280px'
+                      },
+                      // Estilização da Toolbar (Barra de Ferramentas)
+                      '& .ql-toolbar.ql-snow': {
+                        borderColor: theme.palette.divider,
+                        borderRadius: '8px 8px 0 0',
+                        bgcolor: theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100'
+                      },
+                      // Ícones com traço (stroke)
+                      '& .ql-snow .ql-stroke': {
+                        stroke: `${theme.palette.text.primary} !important`
+                      },
+                      // Ícones preenchidos (fill)
+                      '& .ql-snow .ql-fill': {
+                        fill: `${theme.palette.text.primary} !important`
+                      },
+                      // Seletores/Dropdowns (ex: tamanho de fonte, H2, H3)
+                      '& .ql-snow .ql-picker': {
+                        color: `${theme.palette.text.primary} !important`
+                      },
+                      '& .ql-snow .ql-picker-options': {
+                        bgcolor: `${theme.palette.background.paper} !important`,
+                        borderColor: `${theme.palette.divider} !important`
+                      },
+                      // Área de edição de texto
+                      '& .ql-editor': {
+                        color: theme.palette.text.primary,
+                        fontSize: '0.875rem',
+                        minHeight: '250px'
+                      },
+                      // Imagens inseridas via upload não devem estourar a largura do editor
+                      '& .ql-editor img': {
+                        maxWidth: '100%',
+                        borderRadius: '4px'
+                      },
+                      // Texto do Placeholder
+                      '& .ql-editor.ql-blank::before': {
+                        color: `${theme.palette.text.secondary} !important`,
+                        fontStyle: 'normal'
+                      }
+                    }}
+                  >
                     <ReactQuill
+                      ref={quillRef}
                       theme="snow"
                       value={problemDescription}
                       onChange={setProblemDescription}
                       modules={quillModules}
-                      placeholder="Descreva detalhadamente o problema... use o clipe da barra acima para anexar imagens"
+                      placeholder="Descreva detalhadamente o problema..."
                       readOnly={submitting}
                     />
                   </Box>
@@ -284,12 +448,12 @@ const TicketForm = () => {
           </MainCard>
         </Grid>
 
-        {/* COLUNA DIREITA (Menor) - Classificação */}
+        {/* COLUNA DIREITA - Classificação */}
         <Grid size={{ xs: 12, md: 4 }}>
           <MainCard
             title={
               <Stack direction="row" alignItems="center" spacing={1.5}>
-                <IconTag color={theme.palette.secondary.main} />
+                <IconTag size="1.4rem" style={{ color: 'var(--mui-palette-primary-main)' }} />
                 <Typography variant="h4">Classificação</Typography>
               </Stack>
             }
@@ -313,20 +477,13 @@ const TicketForm = () => {
                     onChange={(e) => setPriority(e.target.value)}
                     disabled={submitting}
                     SelectProps={{
-                      renderValue: (value) => (
-                        <Chip
-                          label={PRIORITY_LABELS[value] || value}
-                          color={PRIORITY_COLORS[value]}
-                          size="small"
-                          sx={{ fontWeight: 500 }}
-                        />
-                      )
+                      renderValue: (value) => <PriorityBadge priority={value} />
                     }}
                   >
-                    <MenuItem value="BAIXA">Baixa</MenuItem>
-                    <MenuItem value="MEDIA">Média</MenuItem>
-                    <MenuItem value="ALTA">Alta</MenuItem>
-                    <MenuItem value="URGENTE">Urgente</MenuItem>
+                    <MenuItem value="BAIXA"><PriorityBadge priority="BAIXA" /></MenuItem>
+                    <MenuItem value="MEDIA"><PriorityBadge priority="MEDIA" /></MenuItem>
+                    <MenuItem value="ALTA"><PriorityBadge priority="ALTA" /></MenuItem>
+                    <MenuItem value="URGENTE"><PriorityBadge priority="URGENTE" /></MenuItem>
                   </TextField>
                 </Grid>
 
@@ -363,19 +520,42 @@ const TicketForm = () => {
                     select
                     fullWidth
                     value={responsibleSector}
-                    onChange={(e) => handleSectorChange(e.target.value)}
+                    onChange={(e) => {
+                      const val = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
+                      setResponsibleSector([...new Set(val.map(String))]);
+                    }}
+                    SelectProps={{
+                      multiple: true,
+                      renderValue: (selected) => (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {selected.map((id) => (
+                            <Chip
+                              key={String(id)}
+                              label={sectors.find((sec) => String(sec.id) === String(id))?.name || id}
+                              size="small"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onDelete={() => {
+                                setResponsibleSector((prev) => prev.filter((s) => String(s) !== String(id)));
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      )
+                    }}
                     disabled={submitting || sectors.length === 0}
                     displayEmpty
                     InputLabelProps={{ shrink: true }}
                   >
-                    <MenuItem value="">
+                    <MenuItem value="" disabled>
                       <em style={{ fontStyle: 'normal', color: theme.palette.text.secondary }}>Selecione uma opção</em>
                     </MenuItem>
-                    {sectors.map((sector) => (
-                      <MenuItem key={sector.id || sector} value={sector.id || sector}>
-                        {sector.name || sector}
-                      </MenuItem>
-                    ))}
+                    {sectors
+                      .filter((sector) => !responsibleSector.includes(String(sector.id || sector)))
+                      .map((sector) => (
+                        <MenuItem key={String(sector.id || sector)} value={String(sector.id || sector)}>
+                          {sector.name || sector}
+                        </MenuItem>
+                      ))}
                   </TextField>
                 </Grid>
 
@@ -386,22 +566,48 @@ const TicketForm = () => {
                   <TextField
                     select
                     fullWidth
-                    value={technicianId}
-                    onChange={(e) => setTechnicianId(e.target.value)}
-                    displayEmpty
+                    value={technicianIds}
+                    onChange={(e) => {
+                      const val = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
+                      setTechnicianIds([...new Set(val.map(String))]);
+                    }}
+                    SelectProps={{
+                      multiple: true,
+                      renderValue: (selected) => (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {selected.map((id) => (
+                            <Chip
+                              key={String(id)}
+                              label={technicians.find((tech) => String(tech.id) === String(id))?.name || id}
+                              size="small"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onDelete={() => {
+                                setTechnicianIds((prev) => prev.filter((t) => String(t) !== String(id)));
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      )
+                    }}
                     disabled={!responsibleSector || submitting || loadingTechnicians}
                     InputLabelProps={{ shrink: true }}
                   >
-                    <MenuItem value="">
+                    <MenuItem value="" disabled>
                       <em style={{ fontStyle: 'normal', color: theme.palette.text.secondary }}>
-                        {loadingTechnicians ? 'Carregando...' : responsibleSector ? 'Selecione uma opção' : 'Selecione um setor primeiro'}
+                        {loadingTechnicians
+                          ? 'Carregando...'
+                          : responsibleSector.length > 0
+                            ? 'Selecione um ou mais técnicos'
+                            : 'Selecione um setor primeiro'}
                       </em>
                     </MenuItem>
-                    {technicians.map((tech) => (
-                      <MenuItem key={tech.id || tech} value={tech.id || tech}>
-                        {tech.name || tech}
-                      </MenuItem>
-                    ))}
+                    {technicians
+                      .filter((tech) => !technicianIds.includes(String(tech.id || tech)))
+                      .map((tech) => (
+                        <MenuItem key={String(tech.id || tech)} value={String(tech.id || tech)}>
+                          {tech.name || tech}
+                        </MenuItem>
+                      ))}
                   </TextField>
                 </Grid>
               </Grid>

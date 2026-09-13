@@ -1,128 +1,38 @@
 import { lazy } from 'react';
 
-// project imports
 import MainLayout from 'layout/MainLayout';
 import Loadable from 'ui-component/Loadable';
 import { ProtectedRoute } from './ProtectedRoute';
 
-// dashboard routing
-const DashboardDefault = Loadable(
-  lazy(() => import('views/dashboard/Default'))
-);
+const TicketList = Loadable(lazy(() => import('views/tickets/TicketList')));
+const TicketCreate = Loadable(lazy(() => import('views/tickets/TicketCreate')));
+const TicketView = Loadable(lazy(() => import('views/tickets/TicketView')));
 
-// utilities routing
-const UtilsTypography = Loadable(
-  lazy(() => import('views/utilities/Typography'))
-);
-
-const UtilsColor = Loadable(
-  lazy(() => import('views/utilities/Color'))
-);
-
-const UtilsShadow = Loadable(
-  lazy(() => import('views/utilities/Shadow'))
-);
-
-// tickets
-const TicketList = Loadable(
-  lazy(() => import('views/tickets/TicketList'))
-);
-
-const TicketCreate = Loadable(
-  lazy(() => import('views/tickets/TicketCreate'))
-);
-
-const TicketView = Loadable(
-  lazy(() => import('views/tickets/TicketView'))
-);
-
-
-// ==============================|| MAIN ROUTING ||============================== //
+const protectedPage = (element) => <ProtectedRoute>{element}</ProtectedRoute>;
 
 const MainRoutes = {
   path: '/',
-  element: <MainLayout />,
+  element: protectedPage(<MainLayout />),
   children: [
-
-    // Dashboard
     {
-      path: '/',
-      element: (
-        <ProtectedRoute>
-          <DashboardDefault />
-        </ProtectedRoute>
-      )
+      index: true,
+      element: <TicketList />
     },
-
-    {
-      path: 'dashboard',
-      children: [
-        {
-          path: 'default',
-          element: (
-            <ProtectedRoute>
-              <DashboardDefault />
-            </ProtectedRoute>
-          )
-        }
-      ]
-    },
-
-    // Utilities
-    {
-      path: 'typography',
-      element: (
-        <ProtectedRoute>
-          <UtilsTypography />
-        </ProtectedRoute>
-      )
-    },
-
-    {
-      path: 'color',
-      element: (
-        <ProtectedRoute>
-          <UtilsColor />
-        </ProtectedRoute>
-      )
-    },
-
-    {
-      path: 'shadow',
-      element: (
-        <ProtectedRoute>
-          <UtilsShadow />
-        </ProtectedRoute>
-      )
-    },
-
-    // Tickets
     {
       path: 'tickets',
-      element: (
-        <ProtectedRoute>
-          <TicketList />
-        </ProtectedRoute>
-      )
+      element: <TicketList />
     },
-
     {
       path: 'tickets/create',
-      element: (
-        <ProtectedRoute>
-          <TicketCreate />
-        </ProtectedRoute>
-      )
+      element: <TicketCreate />
     },
-
-    // Visualizar chamado
+    {
+      path: 'tickets/:id/edit',
+      element: <TicketCreate />
+    },
     {
       path: 'tickets/:id',
-      element: (
-        <ProtectedRoute>
-          <TicketView />
-        </ProtectedRoute>
-      )
+      element: <TicketView />
     }
   ]
 };

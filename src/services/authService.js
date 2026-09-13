@@ -1,93 +1,52 @@
 import api from 'utils/api';
 
-/**
- * Fazer login com email e senha
- * @param {string} email - Email do usuário
- * @param {string} password - Senha do usuário
- * @returns {Promise<Object>} Dados do usuário autenticado
- */
+const toUserData = (response) => ({
+  email: response.email,
+  name: response.name,
+  role: response.role,
+  avatar: response.avatar || response.avatarUrl || response.photoUrl || response.profilePhoto || response.image || null
+});
+
 export const login = async (email, password) => {
-  try {
-    const response = await api.post('/api/auth/login', {
-      email,
-      password
-    });
-
-    // Salvar apenas dados do usuário para exibição
-    const userData = {
-      email: response.email,
-      name: response.name,
-      role: response.role
-    };
-
-    localStorage.setItem('user', JSON.stringify(userData));
-
-    return response;
-  } catch (error) {
-    console.error('Erro ao fazer login:', error);
-    throw error;
-  }
+  const response = await api.post('/api/auth/login', { email, password });
+  localStorage.setItem('user', JSON.stringify(toUserData(response)));
+  return response;
 };
 
-/**
- * Fazer logout e limpar dados locais
- * @returns {Promise<void>}
- */
+export const getSession = async () => {
+  // Usa o access token atual; a camada HTTP só faz refresh se ele retornar 401.
+  const response = await api.get('/api/auth/me');
+  const userData = toUserData(response);
+  localStorage.setItem('user', JSON.stringify(userData));
+  return userData;
+};
+
 export const logout = async () => {
   try {
     await api.post('/api/auth/logout', {});
-  } catch (error) {
-    console.error('Erro ao fazer logout:', error);
   } finally {
-    // Limpar apenas os dados locais do usuário.
     localStorage.removeItem('user');
   }
 };
 
-/**
- * Renovar access token usando refresh token
- * @returns {Promise<Object>} Dados do usuário autenticado
- */
 export const refreshToken = async () => {
-  try {
-    const response = await api.post('/api/auth/refresh', {});
-
-    // Atualizar dados do usuário se fornecidos
-    if (response.email) {
-      const userData = {
-        email: response.email,
-        name: response.name,
-        role: response.role
-      };
-
-      localStorage.setItem('user', JSON.stringify(userData));
-    }
-
-    return response;
-  } catch (error) {
-    console.error('Erro ao renovar token:', error);
-
-    localStorage.removeItem('user');
-
-    throw error;
-  }
+  const response = await api.post('/api/auth/refresh', {});
+  const userData = toUserData(response);
+  localStorage.setItem('user', JSON.stringify(userData));
+  return response;
 };
 
-/**
- * Obter dados do usuário autenticado
- * @returns {Object|null} Dados do usuário ou null se não autenticado
- */
 export const getUser = () => {
   const userJson = localStorage.getItem('user');
+  if (!userJson) return null;
 
-  return userJson ? JSON.parse(userJson) : null;
+  try {
+    return JSON.parse(userJson);
+  } catch {
+    localStorage.removeItem('user');
+    return null;
+  }
 };
 
-/**
- * Verificar se o usuário está autenticado
- * @returns {boolean}
-
- */
-export const isAuthenticated = () => {
-  return !!localStorage.getItem('user');
-};
+// Mantido por compatibilidade; a validade real é verificada pelo backend.
+export const isAuthenticated = () => Boolean(getUser());

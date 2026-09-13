@@ -1,7 +1,7 @@
 // ==============================|| DEFAULT THEME COLORS ||============================== //
 
 const defaultColor = {
-  // paper & background
+  // paper & background (Light)
   paper: '#ffffff',
 
   // primary
@@ -11,7 +11,7 @@ const defaultColor = {
   primaryDark: '#1e88e5',
   primary800: '#1565c0',
 
-  // secondary
+  // secondary (Light)
   secondaryLight: '#ede7f6',
   secondary200: '#b39ddb',
   secondaryMain: '#673ab7',
@@ -49,34 +49,34 @@ const defaultColor = {
   grey700: '#364152',
   grey900: '#121926',
 
-  // ==============================|| DARK THEME VARIANTS ||============================== //
+  // ==============================|| DARK THEME VARIANTS (SEM ROXO, NEUTRO) ||============================== //
 
   // paper & background
-  darkPaper: '#111936',
-  darkBackground: '#1a223f',
+  darkPaper: '#18181b',       // Zinc 900 - Fundo dos Cards/Header/Sidebar/Tabelas
+  darkBackground: '#0e0e0f',  // Zinc 950 - Fundo geral do app
 
-  // dark 800 & 900
-  darkLevel1: '#29314f',
-  darkLevel2: '#212946',
+  // dark levels
+  darkLevel1: '#27272a',      // Zinc 800 - Bordas, Inputs, Seleções
+  darkLevel2: '#202023',      // Superfícies elevadas
 
-  // text variants
-  darkTextTitle: '#d7dcec',
-  darkTextPrimary: '#bdc8f0',
-  darkTextSecondary: '#8492c4',
+  // text variants (BRANCO PURO / CINZA CLARO PARA ALTA LEGIBILIDADE)
+  darkTextTitle: '#ffffff',     // Títulos em Branco Puro
+  darkTextPrimary: '#f4f4f5',   // Texto principal claro
+  darkTextSecondary: '#a1a1aa', // Subtítulos e labels legíveis
 
-  // primary dark
-  darkPrimaryLight: '#e3f2fd',
-  darkPrimaryMain: '#2196f3',
-  darkPrimaryDark: '#1e88e5',
-  darkPrimary200: '#90caf9',
-  darkPrimary800: '#1565c0',
+  // primary dark (Azul Neutro)
+  darkPrimaryLight: '#1e293b',
+  darkPrimaryMain: '#3b82f6',
+  darkPrimaryDark: '#2563eb',
+  darkPrimary200: '#93c5fd',
+  darkPrimary800: '#1e40af',
 
-  // secondary dark
-  darkSecondaryLight: '#d1c4e9',
-  darkSecondaryMain: '#7c4dff',
-  darkSecondaryDark: '#651fff',
-  darkSecondary200: '#b39ddb',
-  darkSecondary800: '#6200ea'
+  // secondary dark (Removido o Roxo - Mapeado para tons de Azul/Cinza)
+  darkSecondaryLight: '#27272a',
+  darkSecondaryMain: '#3b82f6',
+  darkSecondaryDark: '#2563eb',
+  darkSecondary200: '#93c5fd',
+  darkSecondary800: '#1e40af'
 };
 
 export default defaultColor;

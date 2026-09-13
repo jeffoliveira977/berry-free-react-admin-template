@@ -1,4 +1,4 @@
-import { IconHeadset } from '@tabler/icons-react'; // Ícones padrões do Berry Free
+import { IconHeadset } from '@tabler/icons-react';
 
 const tickets = {
   id: 'tickets-group',
@@ -12,7 +12,7 @@ const tickets = {
       url: '/tickets',
       icon: IconHeadset,
       breadcrumbs: true
-    },
+    }
   ]
 };
 

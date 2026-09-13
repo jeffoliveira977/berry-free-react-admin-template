@@ -1,6 +1,5 @@
 // material-ui
 import Grid from '@mui/material/Grid';
-import Link from '@mui/material/Link';
 import MuiTypography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 
@@ -83,17 +82,6 @@ export default function Typography() {
                 overline text
               </MuiTypography>
 
-              <MuiTypography
-                variant="body2"
-                component={Link}
-                href="https://berrydashboard.com"
-                target="_blank"
-                underline="hover"
-                gutterBottom
-                sx={{ display: 'block', color: 'primary.main' }}
-              >
-                https://berrydashboard.com
-              </MuiTypography>
             </Stack>
           </SubCard>
         </Grid>

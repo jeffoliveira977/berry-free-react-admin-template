@@ -1,5 +1,7 @@
 // project imports
-import { extendPaletteWithChannels } from 'utils/colorUtils';
+import {
+  extendPaletteWithChannels
+} from 'utils/colorUtils';
 
 // assets
 import defaultColor from './theme/default';
@@ -13,6 +15,13 @@ export function buildPalette(presetColor) {
     default:
       colors = defaultColor;
   }
+
+  const commonColor = {
+    common: {
+      black: colors.darkPaper,
+      white: '#fff'
+    }
+  };
 
   const lightColors = {
     primary: {
@@ -76,20 +85,88 @@ export function buildPalette(presetColor) {
     divider: colors.grey200,
     background: {
       paper: colors.paper,
+      content: colors.grey100,
       default: colors.paper
     }
   };
 
-  const commonColor = { common: { black: colors.darkPaper, white: '#fff' } };
-
-  const extendedLight = extendPaletteWithChannels(lightColors);
-  const extendedCommon = extendPaletteWithChannels(commonColor);
+  const darkColors = {
+    primary: {
+      light: colors.darkPrimaryLight,
+      main: colors.darkPrimaryMain,
+      dark: colors.darkPrimaryDark,
+      200: colors.darkPrimary200,
+      800: colors.darkPrimary800
+    },
+    secondary: {
+      light: colors.darkSecondaryLight,
+      main: colors.darkSecondaryMain,
+      dark: colors.darkSecondaryDark,
+      200: colors.darkSecondary200,
+      800: colors.darkSecondary800
+    },
+    error: {
+      light: colors.errorLight,
+      main: colors.errorMain,
+      dark: colors.errorDark
+    },
+    orange: {
+      light: colors.orangeLight,
+      main: colors.orangeMain,
+      dark: colors.orangeDark
+    },
+    warning: {
+      light: colors.warningLight,
+      main: colors.warningMain,
+      dark: colors.warningDark,
+      contrastText: colors.darkPaper
+    },
+    success: {
+      light: colors.successLight,
+      200: colors.success200,
+      main: colors.successMain,
+      dark: colors.successDark
+    },
+    grey: {
+      50: colors.darkPaper,
+      100: colors.darkBackground,
+      500: colors.darkTextSecondary,
+      600: colors.darkTextSecondary,
+      700: colors.darkTextPrimary,
+      900: colors.darkTextTitle
+    },
+    dark: {
+      light: colors.darkTextPrimary,
+      main: colors.darkLevel1,
+      dark: colors.darkLevel2,
+      800: colors.darkBackground,
+      900: colors.darkPaper
+    },
+    text: {
+      primary: colors.darkTextPrimary,
+      secondary: colors.darkTextSecondary,
+      dark: colors.darkTextTitle,
+      hint: colors.darkTextSecondary,
+      heading: colors.darkTextTitle
+    },
+    divider: 'rgba(189, 200, 240, 0.16)',
+    background: {
+      paper: colors.darkPaper,
+      content: colors.darkBackground,
+      default: colors.darkPaper
+    }
+  };
 
   return {
     light: {
       mode: 'light',
-      ...extendedCommon,
-      ...extendedLight
+      ...extendPaletteWithChannels(commonColor),
+      ...extendPaletteWithChannels(lightColors)
+    },
+    dark: {
+      mode: 'dark',
+      ...extendPaletteWithChannels(commonColor),
+      ...extendPaletteWithChannels(darkColors)
     }
   };
 }
