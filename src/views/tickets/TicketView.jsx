@@ -1,15 +1,15 @@
+// src/views/tickets/TicketView.js
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import {
+  useTheme,
   Box,
   Button,
-  Chip,
   Grid,
   Stack,
   Typography,
   TextField,
-  Menu,
   MenuItem,
   Dialog,
   DialogTitle,
@@ -24,13 +24,10 @@ import AnimateButton from 'ui-component/extended/AnimateButton';
 import {
   IconArrowLeft,
   IconEdit,
-  IconMessage,
-  IconUser,
   IconBuilding,
   IconTag,
-  IconInfoCircle,
   IconFileDescription,
-  IconSend
+  IconUser
 } from '@tabler/icons-react';
 
 import {
@@ -46,30 +43,29 @@ import { toAbsoluteImageUrls } from 'utils/ticketImages';
 import {
   PriorityBadge,
   StatusBadge,
-  PRIORITY_CONFIG,
-  STATUS_CONFIG
+  PRIORITY_CONFIG
 } from 'ui-component/tickets/TicketBadges';
+import TechnicianAvatars from 'ui-component/tickets/TechnicianAvatars';
+
+import TicketComments from './components/TicketComments';
 
 // ==============================|| STATUS ||============================== //
 
-// Valid transitions from each status
 const STATUS_TRANSITIONS = {
-  ABERTO: ['EM_ATENDIMENTO', 'CANCELADO'],
-  EM_ATENDIMENTO: ['RESOLVIDO', 'CANCELADO', 'ABERTO'],
-  RESOLVIDO: ['FECHADO', 'EM_ATENDIMENTO'],
+  ABERTO: ['EM_ANDAMENTO', 'CANCELADO'],
+  EM_ANDAMENTO: ['RESOLVIDO', 'CANCELADO', 'ABERTO'],
+  RESOLVIDO: ['FECHADO', 'EM_ANDAMENTO'],
   FECHADO: ['ABERTO'],
   CANCELADO: []
 };
 
-// Statuses that require a reason
 const STATUSES_REQUIRING_REASON = ['FECHADO', 'CANCELADO'];
-
-// Statuses that close the ticket
 const CLOSED_STATUSES = ['FECHADO', 'CANCELADO'];
 
 // ==============================|| COMPONENT ||============================== //
 
 const TicketView = () => {
+  const theme = useTheme();
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -86,7 +82,6 @@ const TicketView = () => {
   const [selectedImage, setSelectedImage] = useState(null);
 
   // ---- status change ----
-  const [statusMenuAnchor, setStatusMenuAnchor] = useState(null);
   const [pendingStatus, setPendingStatus] = useState(null);
   const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
   const [statusReasonInput, setStatusReasonInput] = useState('');
@@ -137,16 +132,10 @@ const TicketView = () => {
 
     getTicketComments(id)
       .then((response) =>
-        setComments(
-          Array.isArray(response)
-            ? response
-            : response?.data || []
-        )
+        setComments(Array.isArray(response) ? response : response?.data || [])
       )
       .catch(() =>
-        setCommentError(
-          'Não foi possível carregar o histórico deste chamado.'
-        )
+        setCommentError('Não foi possível carregar o histórico deste chamado.')
       );
   }, [id]);
 
@@ -166,17 +155,11 @@ const TicketView = () => {
       const response = await addTicketComment(id, content);
       const createdComment = response?.data || response;
 
-      setComments((current) => [
-        ...current,
-        createdComment
-      ]);
+      setComments((current) => [...current, createdComment]);
 
       setComment('');
     } catch (err) {
-      setCommentError(
-        err.message ||
-        'Não foi possível adicionar o comentário.'
-      );
+      setCommentError(err.message || 'Não foi possível adicionar o comentário.');
     } finally {
       setCommentLoading(false);
     }
@@ -204,40 +187,28 @@ const TicketView = () => {
 
   const status = ticket?.status || 'ABERTO';
 
-  const availableTransitions =
-    STATUS_TRANSITIONS[status] || [];
+  const availableTransitions = STATUS_TRANSITIONS[status] || [];
 
-  const isTicketClosed =
-    CLOSED_STATUSES.includes(status);
+  const isTicketClosed = CLOSED_STATUSES.includes(status);
 
   const requestStatusChange = (newStatus) => {
-    setStatusMenuAnchor(null);
     setPendingStatus(newStatus);
     setStatusReasonInput('');
     setStatusError(null);
 
-    if (
-      STATUSES_REQUIRING_REASON.includes(newStatus)
-    ) {
+    if (STATUSES_REQUIRING_REASON.includes(newStatus)) {
       setReasonDialogOpen(true);
     } else {
       applyStatusChange(newStatus, null);
     }
   };
 
-  const applyStatusChange = async (
-    newStatus,
-    reason
-  ) => {
+  const applyStatusChange = async (newStatus, reason) => {
     try {
       setStatusLoading(true);
       setStatusError(null);
 
-      await changeTicketStatus(
-        id,
-        newStatus,
-        reason
-      );
+      await changeTicketStatus(id, newStatus, reason);
 
       setTicket((prev) => ({
         ...prev,
@@ -260,32 +231,25 @@ const TicketView = () => {
   };
 
   const isClosingAction =
-    pendingStatus &&
-    STATUSES_REQUIRING_REASON.includes(
-      pendingStatus
-    );
+    pendingStatus && STATUSES_REQUIRING_REASON.includes(pendingStatus);
 
   const reasonTooShort =
-    isClosingAction &&
-    statusReasonInput.trim().length === 0;
+    isClosingAction && statusReasonInput.trim().length === 0;
 
   // ============================================================
   // PRIORITY CHANGE
   // ============================================================
 
-  const handlePriorityChange = async (
-    newPriority
-  ) => {
+  const priority = ticket?.priority || 'MEDIA';
+
+  const handlePriorityChange = async (newPriority) => {
     if (newPriority === priority) return;
 
     try {
       setPriorityLoading(true);
       setPriorityError(null);
 
-      await changeTicketPriority(
-        id,
-        newPriority
-      );
+      await changeTicketPriority(id, newPriority);
 
       setTicket((prev) => ({
         ...prev,
@@ -303,26 +267,15 @@ const TicketView = () => {
   };
 
   // ============================================================
-  // LOADING
+  // LOADING / ERROR STATES
   // ============================================================
 
   if (loading) {
     return (
       <MainCard title="Chamados">
-        <Stack
-          alignItems="center"
-          justifyContent="center"
-          spacing={2}
-          sx={{ minHeight: 300 }}
-        >
-          <Typography variant="h4">
-            Carregando chamado...
-          </Typography>
-
-          <Typography
-            variant="body2"
-            color="text.secondary"
-          >
+        <Stack alignItems="center" justifyContent="center" spacing={2} sx={{ minHeight: 300 }}>
+          <Typography variant="h4">Carregando chamado...</Typography>
+          <Typography variant="body2" color="text.secondary">
             Chamado #{id}
           </Typography>
         </Stack>
@@ -330,41 +283,20 @@ const TicketView = () => {
     );
   }
 
-  // ============================================================
-  // ERROR
-  // ============================================================
-
   if (error) {
     return (
       <MainCard title="Chamados">
-        <Stack
-          alignItems="center"
-          justifyContent="center"
-          spacing={2}
-          sx={{ minHeight: 300 }}
-        >
-          <Typography
-            variant="h4"
-            color="error"
-          >
+        <Stack alignItems="center" justifyContent="center" spacing={2} sx={{ minHeight: 300 }}>
+          <Typography variant="h4" color="error">
             Erro ao carregar chamado
           </Typography>
-
-          <Typography
-            variant="body1"
-            color="text.secondary"
-          >
+          <Typography variant="body1" color="text.secondary">
             {error}
           </Typography>
-
           <Button
             variant="outlined"
-            startIcon={
-              <IconArrowLeft size="1.1rem" />
-            }
-            onClick={() =>
-              navigate('/tickets')
-            }
+            startIcon={<IconArrowLeft size="1.1rem" />}
+            onClick={() => navigate('/tickets')}
           >
             Voltar para chamados
           </Button>
@@ -372,40 +304,19 @@ const TicketView = () => {
       </MainCard>
     );
   }
-
-  // ============================================================
-  // TICKET NOT FOUND
-  // ============================================================
 
   if (!ticket) {
     return (
       <MainCard title="Chamados">
-        <Stack
-          alignItems="center"
-          justifyContent="center"
-          spacing={2}
-          sx={{ minHeight: 300 }}
-        >
-          <Typography variant="h4">
-            Chamado não encontrado
+        <Stack alignItems="center" justifyContent="center" spacing={2} sx={{ minHeight: 300 }}>
+          <Typography variant="h4">Chamado não encontrado</Typography>
+          <Typography variant="body1" color="text.secondary">
+            Não foi encontrado nenhum chamado com o ID #{id}.
           </Typography>
-
-          <Typography
-            variant="body1"
-            color="text.secondary"
-          >
-            Não foi encontrado nenhum chamado
-            com o ID #{id}.
-          </Typography>
-
           <Button
             variant="outlined"
-            startIcon={
-              <IconArrowLeft size="1.1rem" />
-            }
-            onClick={() =>
-              navigate('/tickets')
-            }
+            startIcon={<IconArrowLeft size="1.1rem" />}
+            onClick={() => navigate('/tickets')}
           >
             Voltar para chamados
           </Button>
@@ -414,107 +325,42 @@ const TicketView = () => {
     );
   }
 
-  // ============================================================
-  // DATA
-  // ============================================================
+  const requesterName = ticket?.requesterName || ticket?.requester?.name || '-';
+  const departmentName = ticket?.departmentName || ticket?.department?.name || '-';
+  const categoryName = ticket?.categoryName || '-';
 
-  const requester =
-    ticket.requester ||
-    ticket.solicitante ||
-    null;
+  const techNames =
+    ticket?.technicianNames && ticket.technicianNames.length > 0
+      ? ticket.technicianNames
+      : ticket?.technicianName
+      ? [ticket.technicianName]
+      : [];
 
-  const department =
-    ticket.department ||
-    ticket.setor ||
-    null;
-
-  const category =
-    ticket.category ||
-    ticket.categoria ||
-    null;
-
-  const technician =
-    ticket.assignedTechnician ||
-    ticket.technician ||
-    ticket.tecnicoResponsavel ||
-    null;
-
-  const requesterName =
-    requester?.name ||
-    requester?.nome ||
-    ticket.requesterName ||
-    ticket.requesterNome ||
-    '-';
-
-  const departmentName =
-    department?.name ||
-    department?.nome ||
-    ticket.departmentName ||
-    ticket.departmentNome ||
-    '-';
-
-  const categoryName =
-    category?.name ||
-    category?.nome ||
-    ticket.categoryName ||
-    ticket.categoryNome ||
-    '-';
-
-  const technicianName =
-    technician?.name ||
-    technician?.nome ||
-    ticket.assignedTechnicianName ||
-    ticket.technicianName ||
-    '-';
-
-  const technicianNames =
-    ticket.technicianNames?.length
-      ? ticket.technicianNames.join(', ')
-      : technicianName;
-
-  const priority =
-    ticket.priority || 'MEDIA';
-
-  // ============================================================
-  // TEMPLATE
-  // ============================================================
+  const formatDateTime = (dateStr) =>
+    dateStr ? new Date(dateStr).toLocaleString('pt-BR') : '-';
 
   return (
     <>
-      {/* ========================================================
-          HEADER
-      ======================================================== */}
-
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        spacing={2}
-        sx={{ mb: 3 }}
-      >
-        <Typography variant="h2">
-          Visualizar{' '}
-          {ticket.title ||
-            `Chamado #${id}`}
-        </Typography>
-
+      {/* HEADER */}
+      <Stack spacing={0.5} sx={{ mb: 3 }}>
         <Stack
           direction="row"
-          spacing={1.5}
+          alignItems="center"
+          justifyContent="space-between"
+          spacing={2}
         >
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <Typography variant="h2">
+              {ticket.title || `Chamado #${id}`}
+            </Typography>
+          </Stack>
 
           <AnimateButton>
             <Button
               variant="contained"
               color="primary"
-              startIcon={
-                <IconEdit size="1.1rem" />
-              }
-              onClick={() =>
-                navigate(
-                  `/tickets/${ticket.id}/edit`
-                )
-              }
+              startIcon={<IconEdit size="1.1rem" />}
+              onClick={() => navigate(`/tickets/${ticket.id}/edit`)}
               disabled={isTicketClosed}
             >
               Editar Chamado
@@ -525,498 +371,232 @@ const TicketView = () => {
 
       {isTicketClosed && (
         <Alert
-          severity={
-            status === 'CANCELADO'
-              ? 'error'
-              : 'info'
-          }
+          severity={status === 'CANCELADO' ? 'error' : 'info'}
           sx={{ mb: 3 }}
         >
-          Este chamado está{' '}
-          {status === 'CANCELADO'
-            ? 'cancelado'
-            : 'fechado'}
+          Este chamado está {status === 'CANCELADO' ? 'cancelado' : 'fechado'}
           {ticket.statusChangedAt
-            ? ` desde ${new Date(
-              ticket.statusChangedAt
-            ).toLocaleString(
-              'pt-BR'
-            )}`
+            ? ` desde ${new Date(ticket.statusChangedAt).toLocaleString('pt-BR')}`
             : ''}
           .
-          {ticket.statusReason
-            ? ` Motivo: ${ticket.statusReason}`
-            : ''}
+          {ticket.statusReason ? ` Motivo: ${ticket.statusReason}` : ''}
         </Alert>
       )}
 
-      {/* ========================================================
-          CONTENT
-      ======================================================== */}
-
-      <Grid
-        container
-        spacing={3}
-      >
-        {/* ======================================================
-            INFORMATION
-        ====================================================== */}
-
-        <Grid
-          size={{
-            xs: 12,
-            md: 8
-          }}
-        >
+      {/* CONTENT */}
+      <Grid container spacing={3}>
+        {/* INFORMAÇÕES PRINCIPAIS */}
+        <Grid size={{ xs: 12, md: 9 }}>
           <MainCard
             title={
-              <Stack
-                direction="row"
-                alignItems="center"
-                spacing={1}
-              >
-                <IconFileDescription
-                  size="1.3rem"
-                />
-
-                <Typography variant="h4">
-                  Informações do Chamado
-                </Typography>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <IconFileDescription size="1.3rem" />
+                <Typography variant="h4">Informações do Chamado</Typography>
               </Stack>
             }
           >
-            <Stack spacing={3}>
-              {/* REQUESTER */}
-
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ mb: 0.5 }}
-                >
-                  Solicitante
-                </Typography>
-
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  spacing={1}
-                >
-                  <IconUser
-                    size="1.1rem"
-                    stroke={1.5}
-                  />
-
-                  <Typography variant="body1">
-                    {requesterName}
-                  </Typography>
-                </Stack>
-              </Box>
-
-              {/* DESCRIPTION */}
-
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ mb: 1 }}
-                >
-                  Descrição do Problema
-                </Typography>
-
-                <Box
-                  onClick={
-                    handleDescriptionClick
-                  }
-                  sx={{
-                    typography: 'body1',
-                    color: 'text.secondary',
-
-                    '& p': {
-                      marginTop: 0,
-                      marginBottom: 1
-                    },
-
-                    '& img': {
-                      display: 'block',
-                      maxWidth: '100%',
-                      maxHeight: 400,
-                      width: 'auto',
-                      height: 'auto',
-                      objectFit: 'contain',
-                      borderRadius: 1,
-                      cursor: 'zoom-in',
-                      transition:
-                        'opacity 0.2s ease',
-
-                      '&:hover': {
-                        opacity: 0.85
-                      }
-                    }
-                  }}
-                  dangerouslySetInnerHTML={{
-                    __html:
-                      toAbsoluteImageUrls(
-                        ticket.description ||
-                        '-'
-                      )
-                  }}
-                />
-              </Box>
-            </Stack>
+            {/* DESCRIÇÃO DO PROBLEMA */}
+            <Box
+              onClick={handleDescriptionClick}
+              sx={{
+                typography: 'body1',
+                color: 'text.secondary',
+                '& p': { marginTop: 0, marginBottom: 1 },
+                '& img': {
+                  display: 'block',
+                  maxWidth: '100%',
+                  maxHeight: 250, // Tamanho reduzido para a imagem na tela principal
+                  width: 'auto',
+                  height: 'auto',
+                  objectFit: 'contain',
+                  borderRadius: 1,
+                  cursor: 'zoom-in',
+                  transition: 'opacity 0.2s ease',
+                  '&:hover': { opacity: 0.85 }
+                }
+              }}
+              dangerouslySetInnerHTML={{
+                __html: toAbsoluteImageUrls(ticket.description || '-')
+              }}
+            />
           </MainCard>
+          {/* COMENTÁRIOS */}
+      <TicketComments
+        comments={comments}
+        comment={comment}
+        onCommentChange={setComment}
+        onSubmit={handleAddComment}
+        commentLoading={commentLoading}
+        commentError={commentError}
+        isTicketClosed={isTicketClosed}
+        status={status}
+      />
+
         </Grid>
 
-        {/* ======================================================
-            CLASSIFICATION
-        ====================================================== */}
-
-        <Grid
-          size={{
-            xs: 12,
-            md: 4
-          }}
-        >
+        {/* COLUNA DIREITA - CLASSIFICAÇÃO */}
+        <Grid size={{ xs: 12, md: 3 }}>
           <MainCard
             title={
-              <Stack
-                direction="row"
-                alignItems="center"
-                spacing={1}
-              >
-                <IconInfoCircle
-                  size="1.3rem"
-                />
-
-                <Typography variant="h4">
-                  Classificação
-                </Typography>
+              <Stack direction="row" alignItems="center" spacing={1.5}>
+                <IconTag size="1.4rem" style={{ color: 'var(--mui-palette-primary-main)' }} />
+                <Typography variant="h4">Classificação</Typography>
               </Stack>
             }
           >
-            <Stack spacing={3}>
-              {/* STATUS */}
-
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ mb: 1 }}
-                >
-                  Status
-                </Typography>
-
+            <Grid container spacing={2.5}>
+              {/* PRIORIDADE */}
+              <Grid size={{ xs: 12 }}>
                 <TextField
                   select
                   fullWidth
-                  size="small"
-                  value={status}
-                  onChange={(event) =>
-                    requestStatusChange(
-                      event.target.value
-                    )
+                  label={
+                    <span>
+                      Prioridade <span style={{ color: theme.palette.error.main }}>*</span>
+                    </span>
                   }
-                  disabled={
-                    statusLoading ||
-                    availableTransitions.length ===
-                    0
-                  }
-                  SelectProps={{
-                    renderValue: (value) => (
-                      <StatusBadge
-                        status={value}
-                      />
-                    )
-                  }}
-                >
-                  <MenuItem
-                    value={status}
-                    disabled
-                  >
-                    <StatusBadge
-                      status={status}
-                    />
-                  </MenuItem>
-
-                  {availableTransitions.map(
-                    (s) => (
-                      <MenuItem
-                        key={s}
-                        value={s}
-                      >
-                        <StatusBadge
-                          status={s}
-                        />
-                      </MenuItem>
-                    )
-                  )}
-                </TextField>
-              </Box>
-
-              {/* PRIORITY */}
-
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ mb: 1 }}
-                >
-                  Prioridade
-                </Typography>
-
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
                   value={priority}
-                  onChange={(event) =>
-                    handlePriorityChange(
-                      event.target.value
-                    )
-                  }
-                  disabled={
-                    priorityLoading ||
-                    isTicketClosed
-                  }
+                  onChange={(e) => handlePriorityChange(e.target.value)}
+                  disabled={priorityLoading || isTicketClosed}
                   SelectProps={{
-                    renderValue: (value) => (
-                      <PriorityBadge
-                        priority={value}
-                      />
-                    )
+                    renderValue: (value) => <PriorityBadge priority={value} />
+                  }}
+                  sx={{
+                    '& .MuiSelect-select': {
+                      display: 'flex',
+                      alignItems: 'center',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }
                   }}
                 >
-                  {Object.keys(
-                    PRIORITY_CONFIG
-                  ).map((p) => (
-                    <MenuItem
-                      key={p}
-                      value={p}
-                    >
-                      <PriorityBadge
-                        priority={p}
-                      />
+                  {Object.keys(PRIORITY_CONFIG).map((pKey) => (
+                    <MenuItem key={pKey} value={pKey}>
+                      <PriorityBadge priority={pKey} />
                     </MenuItem>
                   ))}
                 </TextField>
-
                 {priorityError && (
-                  <Typography
-                    variant="caption"
-                    color="error"
-                    sx={{
-                      display: 'block',
-                      mt: 0.5
-                    }}
-                  >
+                  <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
                     {priorityError}
                   </Typography>
                 )}
-              </Box>
+              </Grid>
 
-              {/* DEPARTMENT */}
-
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ mb: 0.5 }}
+              {/* STATUS */}
+              <Grid size={{ xs: 12 }}>
+                <TextField
+                  select
+                  fullWidth
+                  label={
+                    <span>
+                      Status <span style={{ color: theme.palette.error.main }}>*</span>
+                    </span>
+                  }
+                  value={status}
+                  onChange={(e) => requestStatusChange(e.target.value)}
+                  disabled={statusLoading || availableTransitions.length === 0}
+                  SelectProps={{
+                    renderValue: (value) => <StatusBadge status={value} />
+                  }}
+                  sx={{
+                    '& .MuiSelect-select': {
+                      display: 'flex',
+                      alignItems: 'center',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }
+                  }}
                 >
+                  <MenuItem value={status} disabled>
+                    <StatusBadge status={status} />
+                  </MenuItem>
+
+                  {availableTransitions.map((nextStatus) => (
+                    <MenuItem key={nextStatus} value={nextStatus}>
+                      <StatusBadge status={nextStatus} />
+                    </MenuItem>
+                  ))}
+                </TextField>
+                {statusError && (
+                  <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                    {statusError}
+                  </Typography>
+                )}
+              </Grid>
+
+              {/* SOLICITANTE */}
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                  Solicitante
+                </Typography>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <IconUser size="1.2rem" />
+                  <Typography variant="body1">{requesterName}</Typography>
+                </Stack>
+              </Grid>
+
+              {/* SETOR RESPONSÁVEL */}
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                   Setor Responsável
                 </Typography>
-
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  spacing={1}
-                >
-                  <IconBuilding
-                    size="1.1rem"
-                    stroke={1.5}
-                  />
-
-                  <Typography variant="body1">
-                    {departmentName}
-                  </Typography>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <IconBuilding size="1.2rem" />
+                  <Typography variant="body1">{departmentName}</Typography>
                 </Stack>
-              </Box>
+              </Grid>
 
-              {/* CATEGORY */}
-
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ mb: 0.5 }}
-                >
+              {/* CATEGORIA */}
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                   Categoria
                 </Typography>
-
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  spacing={1}
-                >
-                  <IconTag
-                    size="1.1rem"
-                    stroke={1.5}
-                  />
-
-                  <Typography variant="body1">
-                    {categoryName}
-                  </Typography>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <IconTag size="1.2rem" />
+                  <Typography variant="body1">{categoryName}</Typography>
                 </Stack>
-              </Box>
+              </Grid>
 
-              {/* TECHNICIAN */}
-
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ mb: 0.5 }}
-                >
+              {/* TÉCNICO RESPONSÁVEL */}
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                   Técnico Responsável
                 </Typography>
+                <TechnicianAvatars
+                  names={techNames}
+                  max={1}
+                  size={28}
+                  emptyLabel="Não atribuído"
+                />
+              </Grid>
 
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  spacing={1}
-                >
-                  <IconUser
-                    size="1.1rem"
-                    stroke={1.5}
-                  />
+              {/* DATAS */}
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                  Aberto em
+                </Typography>
+                <Typography variant="body2">{formatDateTime(ticket.createdAt)}</Typography>
+              </Grid>
 
-                  <Typography variant="body1">
-                    {technicianNames}
+              {ticket.updatedAt && (
+                <Grid size={{ xs: 12 }}>
+                  <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                    Última atualização
                   </Typography>
-                </Stack>
-              </Box>
-            </Stack>
+                  <Typography variant="body2">{formatDateTime(ticket.updatedAt)}</Typography>
+                </Grid>
+              )}
+            </Grid>
           </MainCard>
+          
         </Grid>
       </Grid>
 
-      {/* ========================================================
-          COMMENTS
-      ======================================================== */}
-
-      <MainCard
-        id="ticket-comments"
-        title="Histórico e interação"
-        sx={{ mt: 3 }}
-      >
-        <Stack spacing={2}>
-          {comments.length === 0 && (
-            <Typography color="text.secondary">
-              Nenhum comentário ainda.
-            </Typography>
-          )}
-
-          {comments.map((item) => (
-            <Box
-              key={item.id}
-              sx={{
-                p: 2,
-                borderRadius: 1,
-                bgcolor:
-                  'background.default'
-              }}
-            >
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                spacing={2}
-              >
-                <Typography variant="subtitle2">
-                  {item.authorName ||
-                    'Usuário'}
-                </Typography>
-
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                >
-                  {item.createdAt
-                    ? new Date(
-                      item.createdAt
-                    ).toLocaleString(
-                      'pt-BR'
-                    )
-                    : ''}
-                </Typography>
-              </Stack>
-
-              <Typography
-                sx={{
-                  mt: 0.5,
-                  whiteSpace: 'pre-wrap'
-                }}
-              >
-                {item.content}
-              </Typography>
-            </Box>
-          ))}
-
-          {commentError && (
-            <Typography color="error">
-              {commentError}
-            </Typography>
-          )}
-
-          {isTicketClosed ? (
-            <Alert severity="info">
-              Este chamado está{' '}
-              {status === 'CANCELADO'
-                ? 'cancelado'
-                : 'fechado'}{' '}
-              — não é possível adicionar
-              novas mensagens.
-            </Alert>
-          ) : (
-            <Stack
-              direction={{
-                xs: 'column',
-                sm: 'row'
-              }}
-              spacing={1}
-            >
-              <TextField
-                fullWidth
-                multiline
-                minRows={2}
-                value={comment}
-                onChange={(event) =>
-                  setComment(
-                    event.target.value
-                  )
-                }
-                placeholder="Escreva uma mensagem para os participantes do chamado..."
-                disabled={commentLoading}
-              />
-
-              <Button
-                variant="contained"
-                onClick={handleAddComment}
-                disabled={
-                  !comment.trim() ||
-                  commentLoading
-                }
-                startIcon={
-                  <IconSend size="1.1rem" />
-                }
-                sx={{
-                  minWidth: {
-                    sm: 130
-                  }
-                }}
-              >
-                Enviar
-              </Button>
-            </Stack>
-          )}
-        </Stack>
-      </MainCard>
-
-      {/* ========================================================
-          IMAGE PREVIEW DIALOG
-      ======================================================== */}
-
+                               
+      {/* IMAGE PREVIEW DIALOG */}
       <Dialog
         open={Boolean(selectedImage)}
         onClose={handleCloseImage}
@@ -1051,33 +631,20 @@ const TicketView = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ========================================================
-          STATUS REASON DIALOG
-      ======================================================== */}
-
+      {/* STATUS REASON DIALOG */}
       <Dialog
         open={reasonDialogOpen}
-        onClose={() =>
-          !statusLoading &&
-          setReasonDialogOpen(false)
-        }
+        onClose={() => !statusLoading && setReasonDialogOpen(false)}
         fullWidth
         maxWidth="sm"
       >
         <DialogTitle>
-          {pendingStatus === 'CANCELADO'
-            ? 'Cancelar chamado'
-            : 'Fechar chamado'}
+          {pendingStatus === 'CANCELADO' ? 'Cancelar chamado' : 'Fechar chamado'}
         </DialogTitle>
 
         <DialogContent>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ mb: 2 }}
-          >
-            Informe o motivo — isso fica
-            registrado no chamado.
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Informe o motivo — isso fica registrado no chamado.
           </Typography>
 
           <TextField
@@ -1086,20 +653,13 @@ const TicketView = () => {
             multiline
             minRows={3}
             value={statusReasonInput}
-            onChange={(event) =>
-              setStatusReasonInput(
-                event.target.value
-              )
-            }
+            onChange={(event) => setStatusReasonInput(event.target.value)}
             placeholder="Ex: Problema resolvido após reinstalação do driver."
             disabled={statusLoading}
           />
 
           {statusError && (
-            <Alert
-              severity="error"
-              sx={{ mt: 2 }}
-            >
+            <Alert severity="error" sx={{ mt: 2 }}>
               {statusError}
             </Alert>
           )}
@@ -1107,9 +667,7 @@ const TicketView = () => {
 
         <DialogActions>
           <Button
-            onClick={() =>
-              setReasonDialogOpen(false)
-            }
+            onClick={() => setReasonDialogOpen(false)}
             disabled={statusLoading}
           >
             Cancelar
@@ -1117,25 +675,13 @@ const TicketView = () => {
 
           <Button
             variant="contained"
-            color={
-              pendingStatus === 'CANCELADO'
-                ? 'error'
-                : 'primary'
-            }
-            disabled={
-              reasonTooShort ||
-              statusLoading
-            }
+            color={pendingStatus === 'CANCELADO' ? 'error' : 'primary'}
+            disabled={reasonTooShort || statusLoading}
             onClick={() =>
-              applyStatusChange(
-                pendingStatus,
-                statusReasonInput.trim()
-              )
+              applyStatusChange(pendingStatus, statusReasonInput.trim())
             }
           >
-            {statusLoading
-              ? 'Salvando...'
-              : 'Confirmar'}
+            {statusLoading ? 'Salvando...' : 'Confirmar'}
           </Button>
         </DialogActions>
       </Dialog>

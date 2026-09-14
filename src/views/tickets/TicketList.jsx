@@ -38,6 +38,7 @@ import {
 
 import { getTickets } from 'services/ticketService';
 import { PriorityBadge, StatusBadge, PRIORITY_CONFIG, STATUS_CONFIG } from 'ui-component/tickets/TicketBadges';
+import TechnicianAvatars from 'ui-component/tickets/TechnicianAvatars';
 
 export default function TicketList() {
   const [tickets, setTickets] = useState([]);
@@ -107,7 +108,7 @@ export default function TicketList() {
     return Array.from(names).sort();
   }, [tickets]);
 
-  // Contagem de filtros ativos (fora a busca, que fica sempre visível)
+  // Contagem de filtros ativos
   const activeFilterCount = [
     statusFilter !== 'TODOS',
     priorityFilter !== 'TODAS',
@@ -352,9 +353,6 @@ export default function TicketList() {
             <Table
               sx={{
                 minWidth: 650,
-                // Divisórias entre linhas mais discretas: em vez do
-                // theme.palette.divider padrão (que puxa pro branco no
-                // tema escuro), usamos um branco/preto bem baixo em opacidade.
                 '& .MuiTableCell-root': {
                   borderBottom: (theme) =>
                     `1px solid ${alpha(theme.palette.mode === 'dark' ? '#FFFFFF' : '#000000', 0.06)}`
@@ -413,9 +411,11 @@ export default function TicketList() {
                   </TableRow>
                 ) : (
                   filteredTickets.map((ticket) => {
-                    const technicians = ticket.technicianNames?.length
-                      ? ticket.technicianNames.join(', ')
-                      : ticket.technicianName;
+                    const techNames = ticket.technicianNames?.length
+                      ? ticket.technicianNames
+                      : ticket.technicianName
+                      ? [ticket.technicianName]
+                      : [];
 
                     return (
                       <TableRow
@@ -456,13 +456,12 @@ export default function TicketList() {
                           </Typography>
                         </TableCell>
                         <TableCell>
-                          <Typography
-                            variant="body2"
-                            color={technicians ? 'text.primary' : 'text.disabled'}
-                            sx={{ fontStyle: technicians ? 'normal' : 'italic' }}
-                          >
-                            {technicians || 'Não atribuído'}
-                          </Typography>
+                          <TechnicianAvatars
+                            names={techNames}
+                            max={1}
+                            size={28}
+                            emptyLabel="Não atribuído"
+                          />
                         </TableCell>
                         <TableCell align="center">
                           <PriorityBadge priority={ticket.priority || ticket.prioridade} />
@@ -481,8 +480,11 @@ export default function TicketList() {
           </TableContainer>
 
           {/* ======================================================
-              PAGINAÇÃO (Adicionada mantendo o estilo)
+              PAGINAÇÃO
           ====================================================== */}
+
+          <Divider />
+          
           <TablePagination
             component="div"
             count={totalElements}

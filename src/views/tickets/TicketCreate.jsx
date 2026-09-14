@@ -34,7 +34,7 @@ import api from 'utils/api';
 import { toAbsoluteImageUrls, toAbsoluteUrl, toRelativeImageUrls } from 'utils/ticketImages';
 import { PriorityBadge } from 'ui-component/tickets/TicketBadges';
 
-// ==============================|| COMPONENTE DE CRIAÇÃO DE CHAMADO ||============================== //
+// ==============================|| COMPONENTE DE CRIAÇÃO/EDIÇÃO DE CHAMADO ||============================== //
 
 const TicketForm = () => {
   const theme = useTheme();
@@ -61,9 +61,9 @@ const TicketForm = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
-  // Referência ao editor Quill, usada pelo handler de upload de imagem
   const quillRef = useRef(null);
 
+  // Carregar dados do chamado em modo de edição
   useEffect(() => {
     if (!id) return;
 
@@ -71,10 +71,14 @@ const TicketForm = () => {
       try {
         const response = await getTicketById(id);
         const ticket = response?.data || response;
+
         setTicketTitle(ticket.title || '');
         setProblemDescription(toAbsoluteImageUrls(ticket.description || ''));
         setPriority(ticket.priority || 'MEDIA');
-        setCategory(ticket.category || '');
+
+        // Usa o categoryId retornado pelo backend (campo Long dedicado)
+        setCategory(ticket.categoryId != null ? String(ticket.categoryId) : '');
+
         setResponsibleSector(ticket.departmentId ? [String(ticket.departmentId)] : []);
         setTechnicianIds((ticket.technicianIds || []).map((technicianId) => String(technicianId)));
       } catch (err) {
@@ -97,7 +101,8 @@ const TicketForm = () => {
 
         // Buscar categorias
         const categoriesRes = await api.get('/api/categories');
-        setCategories(Array.isArray(categoriesRes) ? categoriesRes : categoriesRes?.data || []);
+        const fetchedCategories = Array.isArray(categoriesRes) ? categoriesRes : categoriesRes?.data || [];
+        setCategories(fetchedCategories);
       } catch (err) {
         console.error('Erro ao buscar dados iniciais:', err);
         setError('Erro ao carregar setores e categorias');
@@ -158,9 +163,6 @@ const TicketForm = () => {
 
   const isValid = ticketTitle.trim() !== '' && problemDescription.trim() !== '' && priority && category;
 
-  // Handler customizado do botão de imagem do Quill: em vez de embutir a
-  // imagem como base64 na descrição (o que estourava a coluna do banco),
-  // faz upload do arquivo e insere só a URL retornada.
   const imageHandler = useCallback(() => {
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
@@ -182,9 +184,6 @@ const TicketForm = () => {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         const imageUrl = toAbsoluteUrl(response?.url || response?.data?.url);
-
-        console.log('Upload response:', response);
-        console.log('Image URL:', imageUrl);
 
         if (quill && range && imageUrl) {
           quill.insertEmbed(range.index, 'image', imageUrl, 'user');
@@ -231,7 +230,7 @@ const TicketForm = () => {
         title: ticketTitle,
         description: toRelativeImageUrls(problemDescription),
         priority,
-        category,
+        categoryId: category !== '' ? Number(category) : null,
         departmentIds: responsibleSector.map((id) => Number(id)).filter((id) => Number.isFinite(id)),
         departmentId:
           responsibleSector.length > 0 && Number.isFinite(Number(responsibleSector[0]))
@@ -258,8 +257,8 @@ const TicketForm = () => {
         navigate('/tickets');
       }, 1500);
     } catch (err) {
-      console.error('Erro ao criar ticket:', err);
-      setError(err.message || 'Erro ao criar chamado. Tente novamente.');
+      console.error('Erro ao salvar ticket:', err);
+      setError(err.message || 'Erro ao salvar chamado. Tente novamente.');
     } finally {
       setSubmitting(false);
     }
@@ -267,7 +266,6 @@ const TicketForm = () => {
 
   return (
     <>
-      {/* Barra de ações superior corrigida para Dark Mode */}
       <Stack
         direction="row"
         alignItems="center"
@@ -290,7 +288,7 @@ const TicketForm = () => {
           variant="outlined"
           color="inherit"
           startIcon={<IconX size="1.1rem" />}
-          onClick={() => navigate('/tickets')}
+          onClick={() => navigate(isEditMode ? `/tickets/${id}` : '/tickets')}
           disabled={submitting}
           sx={{
             borderColor: 'divider',
@@ -331,7 +329,6 @@ const TicketForm = () => {
         </AnimateButton>
       </Stack>
 
-      {/* Mensagens de erro e sucesso */}
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
           {error}
@@ -344,9 +341,7 @@ const TicketForm = () => {
         </Alert>
       )}
 
-      {/* Grid Principal */}
       <Grid container spacing={3}>
-        {/* COLUNA ESQUERDA - Informações do Chamado */}
         <Grid size={{ xs: 12, md: 8 }}>
           <MainCard
             title={
@@ -371,7 +366,7 @@ const TicketForm = () => {
                     id="ticketTitle"
                     value={ticketTitle}
                     onChange={(e) => setTicketTitle(e.target.value)}
-                    placeholder="Ex: Erro ao emitir nota fiscal"
+                    placeholder="Ex: Computador não liga"
                     disabled={submitting}
                   />
                 </Grid>
@@ -382,53 +377,40 @@ const TicketForm = () => {
                   </Typography>
                   <Box
                     sx={{
-                      opacity: submitting ? 0.5 : 1,
-                      pointerEvents: submitting ? 'none' : 'auto',
-                      // Estilização do Container Principal do Quill
-                      '& .ql-container.ql-snow': {
-                        borderColor: theme.palette.divider,
-                        borderRadius: '0 0 8px 8px',
-                        bgcolor: 'background.paper',
-                        color: theme.palette.text.primary,
-                        minHeight: '280px'
+                      borderRadius: 1,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      backgroundColor: 'transparent',
+                      '&:hover': {
+                        borderColor: 'text.primary'
                       },
-                      // Estilização da Toolbar (Barra de Ferramentas)
-                      '& .ql-toolbar.ql-snow': {
-                        borderColor: theme.palette.divider,
-                        borderRadius: '8px 8px 0 0',
-                        bgcolor: theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100'
+                      '&:focus-within': {
+                        borderColor: 'primary.main',
+                        boxShadow: (theme) => `0 0 0 1px ${theme.palette.primary.main}`
                       },
-                      // Ícones com traço (stroke)
-                      '& .ql-snow .ql-stroke': {
-                        stroke: `${theme.palette.text.primary} !important`
+                      '& .ql-toolbar, & .ql-container': {
+                        border: 'none !important'
+                      },           
+                      '& .ql-toolbar': {
+                        borderBottom: 'none !important',
+                        borderColor: 'divider !important',
+                        backgroundColor: 'transparent'
                       },
-                      // Ícones preenchidos (fill)
-                      '& .ql-snow .ql-fill': {
-                        fill: `${theme.palette.text.primary} !important`
+                      '& .ql-editor, & .ProseMirror': {
+                        color: 'text.primary',
+                        minHeight: '150px'
                       },
-                      // Seletores/Dropdowns (ex: tamanho de fonte, H2, H3)
-                      '& .ql-snow .ql-picker': {
-                        color: `${theme.palette.text.primary} !important`
-                      },
-                      '& .ql-snow .ql-picker-options': {
-                        bgcolor: `${theme.palette.background.paper} !important`,
-                        borderColor: `${theme.palette.divider} !important`
-                      },
-                      // Área de edição de texto
-                      '& .ql-editor': {
-                        color: theme.palette.text.primary,
-                        fontSize: '0.875rem',
-                        minHeight: '250px'
-                      },
-                      // Imagens inseridas via upload não devem estourar a largura do editor
-                      '& .ql-editor img': {
-                        maxWidth: '100%',
-                        borderRadius: '4px'
-                      },
-                      // Texto do Placeholder
                       '& .ql-editor.ql-blank::before': {
-                        color: `${theme.palette.text.secondary} !important`,
-                        fontStyle: 'normal'
+                        color: 'text.secondary'
+                      },
+                      '& .ql-stroke': {
+                        stroke: 'var(--mui-palette-text-primary, currentColor) !important'
+                      },
+                      '& .ql-fill': {
+                        fill: 'var(--mui-palette-text-primary, currentColor) !important'
+                      },
+                      '& .ql-picker': {
+                        color: 'text.primary !important'
                       }
                     }}
                   >
@@ -448,7 +430,6 @@ const TicketForm = () => {
           </MainCard>
         </Grid>
 
-        {/* COLUNA DIREITA - Classificação */}
         <Grid size={{ xs: 12, md: 4 }}>
           <MainCard
             title={
@@ -504,11 +485,15 @@ const TicketForm = () => {
                     <MenuItem value="">
                       <em style={{ fontStyle: 'normal', color: theme.palette.text.secondary }}>Selecione uma opção</em>
                     </MenuItem>
-                    {categories.map((cat) => (
-                      <MenuItem key={cat.id || cat} value={cat.id || cat}>
-                        {cat.name || cat}
-                      </MenuItem>
-                    ))}
+                    {categories.map((cat) => {
+                      const catValue = typeof cat === 'object' ? cat.id : cat;
+                      const catLabel = typeof cat === 'object' ? cat.name || cat.nome : cat;
+                      return (
+                        <MenuItem key={String(catValue)} value={String(catValue)}>
+                          {catLabel}
+                        </MenuItem>
+                      );
+                    })}
                   </TextField>
                 </Grid>
 

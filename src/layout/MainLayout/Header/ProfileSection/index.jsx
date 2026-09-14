@@ -16,12 +16,13 @@ import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import IconButton from '@mui/material/IconButton';
 
 import useConfig from 'hooks/useConfig';
 import { useAuth } from 'hooks/useAuth';
 import MainCard from 'ui-component/cards/MainCard';
 import Transitions from 'ui-component/extended/Transitions';
-import { IconLogout, IconMoon, IconSettings } from '@tabler/icons-react';
+import { IconLogout, IconMoon } from '@tabler/icons-react';
 
 function getInitials(name) {
   return (name || 'Usuário')
@@ -73,34 +74,32 @@ export default function ProfileSection() {
 
   return (
     <>
-      <Chip
-        sx={{
-          ml: 2,
-          height: '48px',
-          alignItems: 'center',
-          borderRadius: '27px'
-        }}
-        icon={
-          <Avatar
-            src={avatarUrl || undefined}
-            alt={displayName}
-            ref={anchorRef}
-            sx={{
-              typography: 'mediumAvatar',
-              margin: '8px 0 8px 8px !important',
-              cursor: 'pointer'
-            }}
-          >
-            {!avatarUrl && getInitials(displayName)}
-          </Avatar>
-        }
-        label={<IconSettings stroke={1.5} size="24px" />}
-        ref={anchorRef}
-        onClick={() => setOpen((current) => !current)}
-        color="primary"
-        aria-label="menu do usuário"
-        aria-haspopup="true"
-      />
+      <IconButton
+  ref={anchorRef}
+  onClick={() => setOpen((current) => !current)}
+  aria-label="menu do usuário"
+  aria-haspopup="true"
+  sx={{
+    ml: 2,
+    p: 0.5,
+    transition: 'all 0.2s ease-in-out',
+    '&:hover': {
+      backgroundColor: theme.palette.action.hover,
+      transform: 'scale(1.05)'
+    }
+  }}
+>
+  <Avatar
+    src={avatarUrl || undefined}
+    alt={displayName}
+    sx={{
+      typography: 'mediumAvatar',
+      cursor: 'pointer'
+    }}
+  >
+    {!avatarUrl && getInitials(displayName)}
+  </Avatar>
+</IconButton>
 
       <Popper
         placement="bottom"
