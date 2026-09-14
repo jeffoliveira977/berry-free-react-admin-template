@@ -107,20 +107,11 @@ const TicketView = () => {
         setLoading(true);
         setError(null);
 
-        console.log('========== VISUALIZAR CHAMADO ==========');
-        console.log('ID:', id);
-
         const response = await getTicketById(id);
-
-        console.log('RESPOSTA:', response);
-        console.log('DADOS:', response?.data);
 
         setTicket(response?.data ?? response);
       } catch (err) {
-        console.error('========== ERRO AO CARREGAR CHAMADO ==========');
         console.error(err);
-        console.error('STATUS:', err?.response?.status);
-        console.error('DATA:', err?.response?.data);
 
         setError(
           err?.response?.data?.error ||
@@ -511,25 +502,6 @@ const TicketView = () => {
           direction="row"
           spacing={1.5}
         >
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={
-              <IconMessage size="1.1rem" />
-            }
-            onClick={() =>
-              document
-                .getElementById(
-                  'ticket-comments'
-                )
-                ?.scrollIntoView({
-                  behavior: 'smooth'
-                })
-            }
-            disabled={isTicketClosed}
-          >
-            Responder
-          </Button>
 
           <AnimateButton>
             <Button
