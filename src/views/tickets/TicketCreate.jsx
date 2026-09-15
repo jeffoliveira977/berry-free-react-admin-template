@@ -114,7 +114,7 @@ const TicketForm = () => {
     fetchInitialData();
   }, []);
 
-  // Buscar técnicos quando os setores mudarem
+  // Listar somente técnicos externos aos setores selecionados.
   useEffect(() => {
     if (!responsibleSector || responsibleSector.length === 0) {
       setTechnicians([]);
@@ -127,31 +127,18 @@ const TicketForm = () => {
         setLoadingTechnicians(true);
         setError(null);
 
-        const promises = responsibleSector.map((sectorId) => {
-          const deptId = typeof sectorId === 'object' ? sectorId.id : sectorId;
-          return api.get('/api/technicians', { params: { departmentId: deptId } });
-        });
-
-        const responses = await Promise.all(promises);
-
-        let allTechData = [];
-        responses.forEach((res) => {
-          let techData = [];
-          if (Array.isArray(res)) {
-            techData = res;
-          } else if (Array.isArray(res?.data)) {
-            techData = res.data;
-          }
-          allTechData = [...allTechData, ...techData];
-        });
-
-        const uniqueTechs = Array.from(new Map(allTechData.map((item) => [String(item.id), item])).values());
+        const departmentIds = responsibleSector
+          .map((sectorId) => Number(typeof sectorId === 'object' ? sectorId.id : sectorId))
+          .filter((departmentId) => Number.isFinite(departmentId));
+        const response = await api.get('/api/technicians', { params: { excludeDepartmentIds: departmentIds } });
+        const techData = Array.isArray(response) ? response : response?.data || [];
+        const uniqueTechs = Array.from(new Map(techData.map((item) => [String(item.id), item])).values());
 
         setTechnicians(uniqueTechs);
         setTechnicianIds((prev) => prev.filter((id) => uniqueTechs.some((tech) => String(tech.id) === String(id))));
       } catch (err) {
         console.error('Erro ao buscar técnicos:', err);
-        setError('Erro ao carregar técnicos dos setores');
+        setError('Erro ao carregar técnicos externos aos setores');
         setTechnicians([]);
       } finally {
         setLoadingTechnicians(false);
@@ -546,7 +533,7 @@ const TicketForm = () => {
 
                 <Grid size={{ xs: 12 }}>
                   <Typography variant="subtitle1" component="label" gutterBottom>
-                    Técnico Responsável
+                    Técnico adicional (fora dos setores)
                   </Typography>
                   <TextField
                     select
@@ -580,9 +567,9 @@ const TicketForm = () => {
                     <MenuItem value="" disabled>
                       <em style={{ fontStyle: 'normal', color: theme.palette.text.secondary }}>
                         {loadingTechnicians
-                          ? 'Carregando...'
+                          ? 'Carregando técnicos externos...'
                           : responsibleSector.length > 0
-                            ? 'Selecione um ou mais técnicos'
+                            ? 'Selecione técnicos de outros setores'
                             : 'Selecione um setor primeiro'}
                       </em>
                     </MenuItem>

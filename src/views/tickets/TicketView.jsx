@@ -46,6 +46,7 @@ import {
   PRIORITY_CONFIG
 } from 'ui-component/tickets/TicketBadges';
 import TechnicianAvatars from 'ui-component/tickets/TechnicianAvatars';
+import UserProfileLink from 'ui-component/tickets/UserProfileLink';
 
 import TicketComments from './components/TicketComments';
 
@@ -333,8 +334,9 @@ const TicketView = () => {
     ticket?.technicianNames && ticket.technicianNames.length > 0
       ? ticket.technicianNames
       : ticket?.technicianName
-      ? [ticket.technicianName]
-      : [];
+        ? [ticket.technicianName]
+        : [];
+  const techIds = ticket?.technicianIds?.length ? ticket.technicianIds : [];
 
   const formatDateTime = (dateStr) =>
     dateStr ? new Date(dateStr).toLocaleString('pt-BR') : '-';
@@ -421,16 +423,16 @@ const TicketView = () => {
             />
           </MainCard>
           {/* COMENTÁRIOS */}
-      <TicketComments
-        comments={comments}
-        comment={comment}
-        onCommentChange={setComment}
-        onSubmit={handleAddComment}
-        commentLoading={commentLoading}
-        commentError={commentError}
-        isTicketClosed={isTicketClosed}
-        status={status}
-      />
+          <TicketComments
+            comments={comments}
+            comment={comment}
+            onCommentChange={setComment}
+            onSubmit={handleAddComment}
+            commentLoading={commentLoading}
+            commentError={commentError}
+            isTicketClosed={isTicketClosed}
+            status={status}
+          />
 
         </Grid>
 
@@ -534,7 +536,7 @@ const TicketView = () => {
                 </Typography>
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <IconUser size="1.2rem" />
-                  <Typography variant="body1">{requesterName}</Typography>
+                  <UserProfileLink id={ticket.requesterId || ticket.requester?.id} name={requesterName} variant="body1" />
                 </Stack>
               </Grid>
 
@@ -567,6 +569,7 @@ const TicketView = () => {
                 </Typography>
                 <TechnicianAvatars
                   names={techNames}
+                  ids={techIds}
                   max={1}
                   size={28}
                   emptyLabel="Não atribuído"
@@ -591,11 +594,11 @@ const TicketView = () => {
               )}
             </Grid>
           </MainCard>
-          
+
         </Grid>
       </Grid>
 
-                               
+
       {/* IMAGE PREVIEW DIALOG */}
       <Dialog
         open={Boolean(selectedImage)}
@@ -644,7 +647,9 @@ const TicketView = () => {
 
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Informe o motivo — isso fica registrado no chamado.
+            Você está prestes a {pendingStatus === 'CANCELADO' ? 'cancelar' : 'fechar'} este chamado. Por favor, forneça um motivo para esta ação:
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
           </Typography>
 
           <TextField

@@ -458,6 +458,7 @@ export default function TicketList() {
                         <TableCell>
                           <TechnicianAvatars
                             names={techNames}
+                            ids={ticket.technicianIds || []}
                             max={1}
                             size={28}
                             emptyLabel="Não atribuído"

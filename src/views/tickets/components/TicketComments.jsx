@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { IconMessage, IconSend } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
+import UserProfileLink from 'ui-component/tickets/UserProfileLink';
 
 // ==============================|| HELPERS ||============================== //
 
@@ -139,7 +140,7 @@ const TicketComments = ({
             (index === 0 ||
               !comments[index - 1].createdAt ||
               formatDayLabel(item.createdAt) !==
-                formatDayLabel(comments[index - 1].createdAt));
+              formatDayLabel(comments[index - 1].createdAt));
 
           return (
             <React.Fragment key={item.id}>
@@ -188,22 +189,16 @@ const TicketComments = ({
                   }}
                 >
                   <Stack direction="row" alignItems="baseline" spacing={1}>
-                    <Typography
-                      variant="subtitle2"
-                      sx={{ fontWeight: 700 }}
-                      noWrap
-                    >
-                      {authorName}
-                    </Typography>
+                    <UserProfileLink id={item.authorId} name={authorName} variant="subtitle2" />
 
                     <Typography variant="caption" color="text.secondary">
                       {item.createdAt
                         ? new Date(item.createdAt).toLocaleString('pt-BR', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })
+                          day: '2-digit',
+                          month: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
                         : ''}
                     </Typography>
                   </Stack>
@@ -231,8 +226,7 @@ const TicketComments = ({
       <Box sx={{ px: 3, py: 2.5, borderTop: '1px solid', borderColor: 'divider' }}>
         {isTicketClosed ? (
           <Alert severity="info">
-            Este chamado está {status === 'CANCELADO' ? 'cancelado' : 'fechado'} —
-            não é possível adicionar novas mensagens.
+            Não é possível adicionar novas mensagens.
           </Alert>
         ) : (
           <Stack

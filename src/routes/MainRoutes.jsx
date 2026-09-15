@@ -7,6 +7,7 @@ import { ProtectedRoute } from './ProtectedRoute';
 const TicketList = Loadable(lazy(() => import('views/tickets/TicketList')));
 const TicketCreate = Loadable(lazy(() => import('views/tickets/TicketCreate')));
 const TicketView = Loadable(lazy(() => import('views/tickets/TicketView')));
+const UserProfile = Loadable(lazy(() => import('views/profile/UserProfile')));
 
 const protectedPage = (element) => <ProtectedRoute>{element}</ProtectedRoute>;
 
@@ -33,6 +34,14 @@ const MainRoutes = {
     {
       path: 'tickets/:id',
       element: <TicketView />
+    },
+    {
+      path: 'profile',
+      element: <UserProfile />
+    },
+    {
+      path: 'users/:id/profile',
+      element: <UserProfile />
     }
   ]
 };

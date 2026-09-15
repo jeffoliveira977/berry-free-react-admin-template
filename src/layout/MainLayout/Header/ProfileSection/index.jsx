@@ -22,7 +22,8 @@ import useConfig from 'hooks/useConfig';
 import { useAuth } from 'hooks/useAuth';
 import MainCard from 'ui-component/cards/MainCard';
 import Transitions from 'ui-component/extended/Transitions';
-import { IconLogout, IconMoon } from '@tabler/icons-react';
+import { toAbsoluteUrl } from 'utils/ticketImages';
+import { IconLogout, IconMoon, IconUser } from '@tabler/icons-react';
 
 function getInitials(name) {
   return (name || 'Usuário')
@@ -50,7 +51,7 @@ export default function ProfileSection() {
 
   const displayName = user?.name || user?.email || 'Usuário';
   const displayRole = user?.role ? user.role.replaceAll('_', ' ') : 'Usuário';
-  const avatarUrl = user?.avatar || user?.avatarUrl || user?.photoUrl || user?.profilePhoto || user?.image;
+  const avatarUrl = toAbsoluteUrl(user?.avatar || user?.avatarUrl || user?.photoUrl || user?.profilePhoto || user?.image);
 
   const isDarkMode = mode === 'dark';
 
@@ -148,6 +149,19 @@ export default function ProfileSection() {
                         borderRadius: `${borderRadius}px`
                       }}
                     >
+                      <ListItemButton
+                        onClick={() => {
+                          setOpen(false);
+                          navigate('/profile');
+                        }}
+                        sx={{ borderRadius: `${borderRadius}px` }}
+                      >
+                        <ListItemIcon>
+                          <IconUser stroke={1.5} size="20px" />
+                        </ListItemIcon>
+                        <ListItemText primary="Meu perfil" />
+                      </ListItemButton>
+
                       <ListItemButton
                         onClick={handleThemeChange}
                         sx={{ borderRadius: `${borderRadius}px` }}
